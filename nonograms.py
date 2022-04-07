@@ -1,0 +1,169 @@
+from io import TextIOWrapper
+import numpy as np
+
+UNKNOWN = 0
+BLACK = 1
+WHITE = 2
+
+print_chars = {
+    UNKNOWN: '🟨',
+    BLACK: '⬛',
+    WHITE: '⬜'
+}
+
+
+def solve_one_line(line, hint):
+    def can_insert_color(idx, x, color):  # 从idx开始的x格插入color不冲突
+        if idx + x > line_size:
+            return False
+        for i in range(idx, idx + x):
+            if line[i] != UNKNOWN and line[i] != color:
+                return False
+        return True
+
+    def can_fill(idx, group, last):  # 从 第idx个格子, 第group组黑块 开始的子问题 是否有解
+        if calc[idx][group][last] != 0:
+            return bool(calc[idx][group][last] - 1)
+        group_len = hint[group]
+        ans = False
+        if group == group_size - 1:  # 如果是最后一组
+            if (can_insert_color(idx, group_len, BLACK) and
+                    can_insert_color(idx + group_len, line_size - idx - group_len, WHITE)):
+                ans = True
+                can_place_black[idx:idx + group_len] = True  # 可以插入黑色
+                can_place_white[idx + group_len:line_size] = True  # 后面的都可以插入白色
+        else:  # 如果不是最后一组
+            if (can_insert_color(idx, group_len, BLACK) and  # 先插入这些黑色
+                    can_insert_color(idx + group_len, 1, WHITE) and  # 再插入一个白色
+                    can_fill(idx + group_len + 1, group + 1, 1)):  # 递归调用，后面的子问题有解
+                ans = True
+                can_place_black[idx:idx + group_len] = True
+                can_place_white[idx + group_len] = True
+
+        if (can_insert_color(idx, 1, WHITE) and  # 如果第idx格可以插入白色
+                can_fill(idx + 1, group, 0)):  # 如果后面的子问题有解
+            ans = True
+            can_place_white[idx] = True
+
+        calc[idx][group][last] = int(ans) + 1
+        return ans
+
+    line_size = len(line)
+    group_size = len(hint)
+    can_place_white = np.zeros(line_size, dtype=np.bool_)
+    can_place_black = np.zeros(line_size, dtype=np.bool_)
+    calc = np.zeros((line_size + 1, group_size, 2), dtype=np.int8)
+    can_fill(0, 0, 0)
+    ans = np.empty(line_size, dtype=np.int8)
+    for i in range(line_size):
+        if can_place_white[i] and can_place_black[i]:
+            ans[i] = UNKNOWN
+        elif can_place_black[i]:
+            ans[i] = BLACK
+        elif can_place_white[i]:
+            ans[i] = WHITE
+        else:
+            raise ValueError
+    return ans
+
+
+def print_line(line, print_chars=print_chars):
+    l = []
+    for i in line:
+        l.append(print_chars[i])
+    return ''.join(l)
+
+
+class Nonograms:
+    def __init__(self, file=None, height=None, width=None, x_hints=None, y_hints=None):
+        if file is not None:
+            if isinstance(file, str):
+                with open(file, 'r', encoding='utf-8') as f:
+                    self.load_from_file(f)
+            elif isinstance(file, TextIOWrapper):
+                self.load_from_file(file)
+            else:
+                raise TypeError
+        else:
+            self.init_game(height, width, x_hints, y_hints)
+
+    def __len__(self):
+        return self.height * self.width
+
+    def load_from_file(self, map_file: TextIOWrapper):
+        hints = map_file.readlines()
+        hints = [hint.strip() for hint in hints if len(hint.strip()) > 0]
+        for i, hint in enumerate(hints):
+            if hint.startswith('-') or hint.startswith('*'):
+                self.height = i
+                self.width = len(hints) - i - 1
+        self.map = np.empty((self.height, self.width), dtype=np.int8)
+        self.map.fill(UNKNOWN)
+        x_hint = hints[:self.height]
+        self.x_hints = [[int(x) for x in hint.split()] for hint in x_hint]
+        y_hint = hints[self.height + 1:]
+        self.y_hints = [[int(x) for x in hint.split()] for hint in y_hint]
+
+    def init_game(self, height=None, width=None, x_hints=None, y_hints=None):
+        self.height = height
+        self.width = width
+        self.map = np.empty((height, width), dtype=np.int8)
+        self.map.fill(UNKNOWN)
+        self.x_hints = x_hints
+        self.y_hints = y_hints
+        if (len(self.x_hints) != self.height) or (len(self.y_hints) != self.width):
+            raise ValueError
+
+    def get_row(self, x):
+        return self.map[x]
+
+    def get_col(self, y):
+        return self.map[..., y]
+
+    def print(self, print_chars=print_chars):
+        for line in self.map:
+            print(print_line(line))
+
+    def solve(self, map=None):
+        if map is None:
+            map = self.map.copy()
+
+        condition_changed = True
+        while condition_changed:
+            condition_changed = False
+            for i in range(self.height):
+                line = map[i].copy()
+                hint = self.x_hints[i]
+                line_solved = solve_one_line(line, hint)
+                if not (line == line_solved).all():  # line与line_solved有任一值不等
+                    condition_changed = True
+                    map[i] = line_solved
+                    f.write(
+                        f'row {i} (hint:{hint}) from {line} to {line_solved}\n')
+            for line in map:
+                f.write(print_line(line) + '\n')
+            f.write('\n')
+            for i in range(self.width):
+                line = map[..., i].copy()
+                hint = self.y_hints[i]
+                line_solved = solve_one_line(line, hint)
+                if not (line == line_solved).all():  # line与line_solved有任一值不等
+                    condition_changed = True
+                    map[..., i] = line_solved
+                    f.write(
+                        f'col {i} (hint:{hint}) from {line} to {line_solved}\n')
+            for line in map:
+                f.write(print_line(line) + '\n')
+            f.write('\n\n')
+        return map
+
+
+if __name__ == '__main__':
+    f = open('233.txt', 'w', encoding='utf-8')
+    # print(solve_one_line(np.array([0, 0, 1, 0, 0, 0, 0, 0, 0, 0]), [4]))
+    nonograms = Nonograms('game_map.txt')
+    nonograms.solve()
+    nonograms.print()
+    # print(solve_one_line(np.array([0, 0, 1, 1, 0]), [3]))
+    # print(solve_one_line(np.zeros(50, np.int8), [3, 4, 1, 6, 1, 3, 2, 12, 1]))
+    f.close()
