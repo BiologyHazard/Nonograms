@@ -87,8 +87,8 @@ def solve(map, height, width, x_hints, y_hints, logf=None):
                 hint = x_hints[i]
                 temp = solve_a_single_line(line, hint)
                 if temp is None:
-                    logf.write(
-                        f'row {i} (hint:{hint}) {print_line(line)} ERROR!!\n\n')
+                    # logf.write(
+                    #     f'row {i} (hint:{hint}) {print_line(line)} ERROR!!\n\n')
                     return None
                 line_solved, solved = temp
                 if solved:
@@ -96,15 +96,15 @@ def solve(map, height, width, x_hints, y_hints, logf=None):
                 if not (line == line_solved).all():  # line与line_solved有任一值不等
                     condition_changed = True
                     map[i] = line_solved
-                logf.write(
-                    f'row {i} (hint:{hint}) from {print_line(line)} to {print_line(line_solved)}\n')
-            else:
-                logf.write(
-                    f'row {i} (hint:{hint}) {print_line(map[i])} solved\n')
+                # logf.write(
+                #     f'row {i} (hint:{hint}) from {print_line(line)} to {print_line(line_solved)}\n')
+            # else:
+                # logf.write(
+                #     f'row {i} (hint:{hint}) {print_line(map[i])} solved\n')
 
-        for line in map:
-            logf.write(print_line(line) + '\n')
-        logf.write('\n')
+        # for line in map:
+            #     logf.write(print_line(line) + '\n')
+            # logf.write('\n')
 
         for i in range(width):
             if not solved_y[i]:
@@ -112,8 +112,8 @@ def solve(map, height, width, x_hints, y_hints, logf=None):
                 hint = y_hints[i]
                 temp = solve_a_single_line(line, hint)
                 if temp is None:
-                    logf.write(
-                        f'col {i} (hint:{hint}) {print_line(line)} ERROR!!\n\n')
+                    # logf.write(
+                    #     f'col {i} (hint:{hint}) {print_line(line)} ERROR!!\n\n')
                     return None
                 line_solved, solved = temp
                 if solved:
@@ -121,15 +121,15 @@ def solve(map, height, width, x_hints, y_hints, logf=None):
                 if not (line == line_solved).all():  # line与line_solved有任一值不等
                     condition_changed = True
                     map[..., i] = line_solved
-                logf.write(
-                    f'col {i} (hint:{hint}) from {print_line(line)} to {print_line(line_solved)}\n')
-            else:
-                logf.write(
-                    f'col {i} (hint:{hint}) {print_line(map[..., i])} solved\n')
+                # logf.write(
+                #     f'col {i} (hint:{hint}) from {print_line(line)} to {print_line(line_solved)}\n')
+            # else:
+            #     logf.write(
+            #         f'col {i} (hint:{hint}) {print_line(map[..., i])} solved\n')
 
-        for line in map:
-            logf.write(print_line(line) + '\n')
-        logf.write('\n\n')
+        # for line in map:
+        #     logf.write(print_line(line) + '\n')
+        # logf.write('\n\n')
 
         if solved_x.all() and solved_y.all():  # 如果解完了
             return map
