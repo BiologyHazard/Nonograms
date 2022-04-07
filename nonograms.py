@@ -4,7 +4,7 @@ import time
 
 UNKNOWN = 0
 BLACK = 1
-WHITE = 2
+WHITE = 2  # must be bytes (-128..127)
 
 print_chars = {
     UNKNOWN: '🟨',
@@ -13,7 +13,7 @@ print_chars = {
 }
 
 
-def solve_one_line(line, hint):
+def solve_a_single_line(line, hint):
     def can_insert_color(idx, x, color):  # 从idx开始的x格插入color不冲突
         if idx + x > line_size:
             return False
@@ -70,7 +70,7 @@ def solve_one_line(line, hint):
         elif can_place_white[i]:
             result[i] = WHITE
         else:
-            return None
+            return None  # 矛盾了
     return result, solved
 
 
@@ -83,14 +83,17 @@ def solve(map, height, width, x_hints, y_hints, solved_x, solved_y, logf=None):
             if not solved_x[i]:
                 line = map[i].copy()
                 hint = x_hints[i]
-                line_solved, solved = solve_one_line(line, hint)
+                line_solved, solved = solve_a_single_line(line, hint)
+                if solved:
+                    solved_x[i] = True
                 if not (line == line_solved).all():  # line与line_solved有任一值不等
                     condition_changed = True
                     map[i] = line_solved
-                    logf.write(
-                        f'row {i} (hint:{hint}) from {print_line(line)} to {print_line(line_solved)}\n')
-                    if solved:
-                        solved_x[i] = True
+                logf.write(
+                    f'row {i} (hint:{hint}) from {print_line(line)} to {print_line(line_solved)}\n')
+            if solved_x[i]:
+                logf.write(
+                    f'row {i} (hint:{hint}) {print_line(line_solved)} solved\n')
 
         for line in map:
             logf.write(print_line(line) + '\n')
@@ -100,19 +103,44 @@ def solve(map, height, width, x_hints, y_hints, solved_x, solved_y, logf=None):
             if not solved_y[i]:
                 line = map[..., i].copy()
                 hint = y_hints[i]
-                line_solved, solved = solve_one_line(line, hint)
+                line_solved, solved = solve_a_single_line(line, hint)
+                if solved:
+                    solved_y[i] = True
                 if not (line == line_solved).all():  # line与line_solved有任一值不等
                     condition_changed = True
                     map[..., i] = line_solved
-                    logf.write(
-                        f'col {i} (hint:{hint}) from {print_line(line)} to {print_line(line_solved)}\n')
-                    if solved:
-                        solved_y[i] = True
+                logf.write(
+                    f'col {i} (hint:{hint}) from {print_line(line)} to {print_line(line_solved)}\n')
+            if solved_y[i]:
+                logf.write(
+                    f'col {i} (hint:{hint}) {print_line(line_solved)} solved\n')
 
         for line in map:
             logf.write(print_line(line) + '\n')
         logf.write('\n\n')
-    return map
+
+        if solved_x.all() and solved_y.all():  # 如果解完了
+            return map
+    # 如果还没确定，就猜一个
+    for i in range(height):
+        if solved_x[i]:
+            continue
+        for j in range(width):
+            if not solved_y[j]:
+                logf.write(f'guess ({i}, {j}) black\n')
+                map2 = map.copy()
+                map2[i][j] = BLACK
+                ans = solve(map2, height, width, x_hints, y_hints,
+                            solved_x.copy(), solved_y.copy(), logf)
+                if ans is not None:
+                    return ans
+                else:
+                    logf.write(f'({i}, {j}) must be white\n')
+                    map2[i][j] = WHITE
+                    return solve(map2, height, width, x_hints, y_hints,
+                                 solved_x.copy(), solved_y.copy(), logf)
+            break
+        break
 
 
 def print_line(line, print_chars=print_chars):
@@ -178,8 +206,8 @@ class Nonograms:
                          self.width,
                          self.x_hints,
                          self.y_hints,
-                         np.zeros(self.height, dtype=np.int8),
-                         np.zeros(self.width, dtype=np.int8),
+                         np.zeros(self.height, dtype=np.bool_),
+                         np.zeros(self.width, dtype=np.bool_),
                          logf)
         return self.map
 
@@ -187,7 +215,6 @@ class Nonograms:
 if __name__ == '__main__':
     time0 = time.time()
     with open('solve.log', 'w', encoding='utf-8') as logf:
-        # print(solve_one_line(np.array([0, 0, 1, 0, 0, 0, 0, 0, 0, 0]), [4]))
         nonograms = Nonograms('game_map.txt')
         nonograms.solve(logf)
         nonograms.print()
