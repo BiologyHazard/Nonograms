@@ -24,21 +24,25 @@ def solve_one_line(line, hint):
     def can_fill(idx, group, last):  # 从 第idx个格子, 第group组黑块 开始的子问题 是否有解
         if calc[idx][group][last] != 0:
             return bool(calc[idx][group][last] - 1)
-        group_len = hint[group]
+
+        black_num = hint[group]  # 该组黑块个数
         ans = False
+
         if group == group_size - 1:  # 如果是最后一组
-            if (can_insert_color(idx, group_len, BLACK) and
-                    can_insert_color(idx + group_len, line_size - idx - group_len, WHITE)):
+            if (can_insert_color(idx, black_num, BLACK) and
+                    can_insert_color(idx + black_num,
+                                     line_size - idx - black_num, WHITE)):
                 ans = True
-                can_place_black[idx:idx + group_len] = True  # 可以插入黑色
-                can_place_white[idx + group_len:line_size] = True  # 后面的都可以插入白色
+                can_place_black[idx:idx + black_num] = True  # 可以插入黑色
+                can_place_white[idx + black_num:line_size] = True  # 后面的都可以插入白色
+
         else:  # 如果不是最后一组
-            if (can_insert_color(idx, group_len, BLACK) and  # 先插入这些黑色
-                    can_insert_color(idx + group_len, 1, WHITE) and  # 再插入一个白色
-                    can_fill(idx + group_len + 1, group + 1, 1)):  # 递归调用，后面的子问题有解
+            if (can_insert_color(idx, black_num, BLACK) and  # 先插入这些黑色
+                    can_insert_color(idx + black_num, 1, WHITE) and  # 再插入一个白色
+                    can_fill(idx + black_num + 1, group + 1, 1)):  # 递归调用，后面的子问题有解
                 ans = True
-                can_place_black[idx:idx + group_len] = True
-                can_place_white[idx + group_len] = True
+                can_place_black[idx:idx + black_num] = True
+                can_place_white[idx + black_num] = True
 
         if (can_insert_color(idx, 1, WHITE) and  # 如果第idx格可以插入白色
                 can_fill(idx + 1, group, 0)):  # 如果后面的子问题有解
@@ -124,7 +128,7 @@ class Nonograms:
         for line in self.map:
             print(print_line(line))
 
-    def solve(self, map=None):
+    def solve(self, map=None, logf=None):
         if map is None:
             map = self.map.copy()
 
@@ -138,11 +142,11 @@ class Nonograms:
                 if not (line == line_solved).all():  # line与line_solved有任一值不等
                     condition_changed = True
                     map[i] = line_solved
-                    f.write(
+                    logf.write(
                         f'row {i} (hint:{hint}) from {line} to {line_solved}\n')
             for line in map:
-                f.write(print_line(line) + '\n')
-            f.write('\n')
+                logf.write(print_line(line) + '\n')
+            logf.write('\n')
             for i in range(self.width):
                 line = map[..., i].copy()
                 hint = self.y_hints[i]
@@ -150,20 +154,19 @@ class Nonograms:
                 if not (line == line_solved).all():  # line与line_solved有任一值不等
                     condition_changed = True
                     map[..., i] = line_solved
-                    f.write(
+                    logf.write(
                         f'col {i} (hint:{hint}) from {line} to {line_solved}\n')
             for line in map:
-                f.write(print_line(line) + '\n')
-            f.write('\n\n')
+                logf.write(print_line(line) + '\n')
+            logf.write('\n\n')
         return map
 
 
 if __name__ == '__main__':
-    f = open('233.txt', 'w', encoding='utf-8')
-    # print(solve_one_line(np.array([0, 0, 1, 0, 0, 0, 0, 0, 0, 0]), [4]))
-    nonograms = Nonograms('game_map.txt')
-    nonograms.solve()
-    nonograms.print()
-    # print(solve_one_line(np.array([0, 0, 1, 1, 0]), [3]))
-    # print(solve_one_line(np.zeros(50, np.int8), [3, 4, 1, 6, 1, 3, 2, 12, 1]))
-    f.close()
+    with open('solve.log', 'w', encoding='utf-8') as logf:
+        # print(solve_one_line(np.array([0, 0, 1, 0, 0, 0, 0, 0, 0, 0]), [4]))
+        nonograms = Nonograms('game_map.txt')
+        nonograms.solve(nonograms.map, logf)
+        nonograms.print()
+        # print(solve_one_line(np.array([0, 0, 1, 1, 0]), [3]))
+        # print(solve_one_line(np.zeros(50, np.int8), [3, 4, 1, 6, 1, 3, 2, 12, 1]))\
