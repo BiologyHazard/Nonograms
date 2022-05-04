@@ -2,3 +2,4 @@
 !*.py
 !game_map.txt
 !*.gitignore
+!README.md
